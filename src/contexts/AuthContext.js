@@ -17,35 +17,66 @@ export const AuthProvider = ({ children }) => {
   const [profile, setProfile] = useState(null);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        loadProfile(session.user.id);
+    let mounted = true;
+
+    const getInitialSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting session:', error);
+          return;
+        }
+
+        if (mounted) {
+          setUser(session?.user ?? null);
+          if (session?.user) {
+            await loadProfile(session.user.id);
+          }
+        }
+      } catch (error) {
+        console.error('Error in getInitialSession:', error);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
       }
-      setLoading(false);
-    });
+    };
+
+    getInitialSession();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await loadProfile(session.user.id);
-        } else {
-          setProfile(null);
+        console.log('Auth state changed:', event, session?.user?.email);
+        
+        if (mounted) {
+          setUser(session?.user ?? null);
+          
+          if (session?.user) {
+            await loadProfile(session.user.id);
+          } else {
+            setProfile(null);
+          }
+          
+          setLoading(false);
         }
-        setLoading(false);
       }
     );
 
-    return () => subscription?.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription?.unsubscribe();
+    };
   }, []);
 
   const loadProfile = async (userId) => {
     try {
+      console.log('Loading profile for user:', userId);
       const profileData = await database.getProfile();
+      
       if (!profileData) {
+        console.log('No profile found, creating new profile');
         // Create profile if it doesn't exist
         const newProfile = await database.createProfile({
           id: userId,
@@ -53,6 +84,7 @@ export const AuthProvider = ({ children }) => {
         });
         setProfile(newProfile);
       } else {
+        console.log('Profile loaded:', profileData);
         setProfile(profileData);
       }
     } catch (error) {
@@ -61,60 +93,136 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signUp = async (email, password) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-    if (error) throw error;
-    return data;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+      
+      if (error) throw error;
+      
+      console.log('Sign up successful:', data);
+      return data;
+    } catch (error) {
+      console.error('Sign up error:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const signIn = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) throw error;
-    return data;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) throw error;
+      
+      console.log('Sign in successful:', data);
+      return data;
+    } catch (error) {
+      console.error('Sign in error:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const signInWithGoogle = async () => {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-    });
-    if (error) throw error;
-    return data;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: 'your-app://auth-callback',
+        },
+      });
+      
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Google sign in error:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const signInWithApple = async () => {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'apple',
-    });
-    if (error) throw error;
-    return data;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'apple',
+        options: {
+          redirectTo: 'your-app://auth-callback',
+        },
+      });
+      
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Apple sign in error:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      console.log('Sign out successful');
+      setUser(null);
+      setProfile(null);
+    } catch (error) {
+      console.error('Sign out error:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const resetPassword = async (email) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
-    if (error) throw error;
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'your-app://reset-password',
+      });
+      if (error) throw error;
+    } catch (error) {
+      console.error('Reset password error:', error);
+      throw error;
+    }
   };
 
   const updateProfile = async (updates) => {
     if (!user) throw new Error('No user');
-    const updatedProfile = await database.updateProfile(user.id, updates);
-    setProfile(updatedProfile);
-    return updatedProfile;
+    
+    try {
+      const updatedProfile = await database.updateProfile(user.id, updates);
+      setProfile(updatedProfile);
+      return updatedProfile;
+    } catch (error) {
+      console.error('Update profile error:', error);
+      throw error;
+    }
   };
 
   const deleteAccount = async () => {
-    // This would need to be implemented as a Supabase Edge Function
-    // For now, just sign out
-    await signOut();
+    try {
+      // For now, just sign out since actual account deletion
+      // would need to be implemented as a Supabase Edge Function
+      await signOut();
+    } catch (error) {
+      console.error('Delete account error:', error);
+      throw error;
+    }
   };
 
   const value = {

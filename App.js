@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { PaperProvider, MD3LightTheme } from 'react-native-paper';
+import { PaperProvider, MD3LightTheme, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { View, StyleSheet } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
@@ -17,6 +18,17 @@ import AddSetScreen from './src/screens/AddSetScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+
+const theme = {
+  ...MD3LightTheme,
+  colors: {
+    ...MD3LightTheme.colors,
+    primary: '#6750A4',
+    primaryContainer: '#EADDFF',
+    secondary: '#625B71',
+    secondaryContainer: '#E8DEF8',
+  },
+};
 
 function TabNavigator() {
   return (
@@ -36,22 +48,76 @@ function TabNavigator() {
         tabBarActiveTintColor: '#6750A4',
         tabBarInactiveTintColor: 'gray',
         headerShown: false,
+        tabBarStyle: {
+          backgroundColor: 'white',
+          borderTopWidth: 1,
+          borderTopColor: '#E0E0E0',
+          elevation: 8,
+          height: 60,
+          paddingBottom: 8,
+          paddingTop: 8,
+        },
       })}
     >
-      <Tab.Screen name="Today" component={TodayScreen} />
-      <Tab.Screen name="History" component={HistoryScreen} />
-      <Tab.Screen name="Settings" component={SettingsScreen} />
+      <Tab.Screen 
+        name="Today" 
+        component={TodayScreen}
+        options={{
+          tabBarLabel: 'Today',
+        }}
+      />
+      <Tab.Screen 
+        name="History" 
+        component={HistoryScreen}
+        options={{
+          tabBarLabel: 'History',
+        }}
+      />
+      <Tab.Screen 
+        name="Settings" 
+        component={SettingsScreen}
+        options={{
+          tabBarLabel: 'Settings',
+        }}
+      />
     </Tab.Navigator>
   );
 }
 
 function AppNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator 
+      screenOptions={{ 
+        headerShown: false,
+        animation: 'slide_from_right',
+      }}
+    >
       <Stack.Screen name="Main" component={TabNavigator} />
-      <Stack.Screen name="CreateExercise" component={CreateExerciseScreen} />
-      <Stack.Screen name="AddSet" component={AddSetScreen} />
+      <Stack.Screen 
+        name="CreateExercise" 
+        component={CreateExerciseScreen}
+        options={{
+          presentation: 'modal',
+          animation: 'slide_from_bottom',
+        }}
+      />
+      <Stack.Screen 
+        name="AddSet" 
+        component={AddSetScreen}
+        options={{
+          presentation: 'modal',
+          animation: 'slide_from_bottom',
+        }}
+      />
     </Stack.Navigator>
+  );
+}
+
+function LoadingScreen() {
+  return (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="large" color="#6750A4" />
+    </View>
   );
 }
 
@@ -59,7 +125,7 @@ function AppContent() {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return null; // You can add a loading screen here
+    return <LoadingScreen />;
   }
 
   return (
@@ -78,7 +144,7 @@ function AppContent() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <PaperProvider theme={MD3LightTheme}>
+      <PaperProvider theme={theme}>
         <AuthProvider>
           <AppContent />
         </AuthProvider>
@@ -86,3 +152,12 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+});
